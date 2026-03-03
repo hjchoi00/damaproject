@@ -3,6 +3,10 @@
 다마고치 가상 펫 게임의 모든 수치/설정값
 """
 
+# ─── 버전 ───
+VERSION = "1.0.0"
+GITHUB_REPO = "hjchoi00/damaproject"  # ← GitHub 아이디로 수정
+
 # ─── 화면 설정 ───
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 640
