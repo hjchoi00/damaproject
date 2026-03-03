@@ -36,6 +36,11 @@ class MinigameScene(Scene):
         self.btn_retry.set_callback(self._on_retry)
         self.btn_back.set_callback(self._on_back)
 
+        # 게임 중 나가기 버튼 (헤더 우측 상단)
+        self.btn_exit = Button(SCREEN_WIDTH - 85, 10, 75, 36, "나가기",
+                               color=(200, 80, 80), font_size=FONT_SIZE_SMALL)
+        self.btn_exit.set_callback(self._on_exit)
+
     def on_enter(self, pet=None, **kwargs):
         if pet:
             self.pet = pet
@@ -63,6 +68,10 @@ class MinigameScene(Scene):
             actions.play(self.pet, self.result)
         self.manager.switch_to("main", pet=self.pet)
 
+    def _on_exit(self):
+        """게임 중 나가기 (보상 없이 메인으로)"""
+        self.manager.switch_to("main", pet=self.pet)
+
     def finish_game(self, result, score=0):
         """게임 종료 처리 + 보상 지급"""
         self.state = "result"
@@ -84,8 +93,11 @@ class MinigameScene(Scene):
 
         # ESC로 나가기
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self._on_back()
+            self._on_exit()
             return
+
+        # 나가기 버튼
+        self.btn_exit.handle_event(event)
 
         self._handle_game_event(event)
 
@@ -116,6 +128,10 @@ class MinigameScene(Scene):
         font = get_font(FONT_SIZE_LARGE)
         text = font.render(self.title, True, COLOR_TEXT)
         surface.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, 15))
+
+        # 게임 중일 때 나가기 버튼 표시
+        if self.state in ("ready", "playing"):
+            self.btn_exit.draw(surface)
 
     def _draw_game(self, surface):
         """서브클래스에서 오버라이드"""
