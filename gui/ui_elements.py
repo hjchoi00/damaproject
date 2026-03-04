@@ -3,6 +3,7 @@ UI 기본 요소 - 버튼, 상태바, 텍스트 입력 등
 파스텔톤 픽셀아트 스타일
 """
 import pygame
+import time
 from data.constants import (
     COLOR_BTN, COLOR_BTN_HOVER, COLOR_BTN_PRESS, COLOR_BTN_DISABLED,
     COLOR_TEXT, COLOR_WHITE, COLOR_BLACK, COLOR_ACCENT,
@@ -195,11 +196,18 @@ class TextInput:
         self.cursor_visible = True
         self.cursor_timer = 0
         self.confirmed = False
+        # 한국어 IME 조합 지원
+        self.composition = ""          # IME 조합 중인 문자열
+        self._last_textinput_text = "" # 중복 TEXTINPUT 방지
+        self._last_textinput_time = 0.0
 
     def handle_event(self, event):
         """이벤트 처리. 확정 시 True 반환"""
         if event.type == pygame.MOUSEBUTTONDOWN:
+            prev_active = self.active
             self.active = self.rect.collidepoint(event.pos)
+            if not self.active and prev_active:
+                self.composition = ""
             return False
 
         if not self.active:
@@ -208,15 +216,34 @@ class TextInput:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RETURN:
                 if self.text.strip():
+                    self.composition = ""
                     self.confirmed = True
                     return True
             elif event.key == pygame.K_BACKSPACE:
-                self.text = self.text[:-1]
+                if self.composition:
+                    # 조합 중이면 조합 취소
+                    self.composition = ""
+                else:
+                    self.text = self.text[:-1]
             elif event.key == pygame.K_ESCAPE:
+                self.composition = ""
                 self.active = False
             return False
 
+        # IME 조합 중인 문자열 처리 (TEXTEDITING)
+        if event.type == pygame.TEXTEDITING:
+            self.composition = event.text
+            return False
+
         if event.type == pygame.TEXTINPUT:
+            self.composition = ""
+            now = time.time()
+            # Windows 한국어 IME 중복 TEXTINPUT 버그 방지
+            if (event.text == self._last_textinput_text
+                    and now - self._last_textinput_time < 0.05):
+                return False
+            self._last_textinput_text = event.text
+            self._last_textinput_time = now
             if len(self.text) < self.max_length:
                 self.text += event.text
             return False
@@ -237,8 +264,24 @@ class TextInput:
         draw_rounded_rect(surface, self.rect, bg_color, radius=8, border_color=border, border_width=3)
 
         font = get_font(self.font_size)
-        if self.text:
-            text_surf = font.render(self.text, True, COLOR_TEXT)
+        display_text = self.text + self.composition  # 조합 중인 문자 포함
+        if display_text:
+            if self.composition:
+                # 조합 중인 부분은 밑줄로 구분
+                base_surf = font.render(self.text, True, COLOR_TEXT)
+                comp_surf = font.render(self.composition, True, COLOR_ACCENT)
+                total_w = base_surf.get_width() + comp_surf.get_width()
+                total_h = max(base_surf.get_height(), comp_surf.get_height())
+                text_surf = pygame.Surface((max(total_w, 1), total_h), pygame.SRCALPHA)
+                text_surf.blit(base_surf, (0, 0))
+                text_surf.blit(comp_surf, (base_surf.get_width(), 0))
+                # 조합 중인 글자 아래 밑줄
+                underline_y = total_h - 2
+                pygame.draw.line(text_surf, COLOR_ACCENT,
+                                 (base_surf.get_width(), underline_y),
+                                 (total_w, underline_y), 2)
+            else:
+                text_surf = font.render(self.text, True, COLOR_TEXT)
         else:
             text_surf = font.render(self.placeholder, True, COLOR_GRAY)
 
@@ -247,8 +290,8 @@ class TextInput:
         surface.blit(text_surf, text_rect)
 
         # 커서
-        if self.active and self.cursor_visible:
-            cursor_x = text_rect.right + 2 if self.text else self.rect.x + 12
+        if self.active and self.cursor_visible and not self.composition:
+            cursor_x = text_rect.right + 2 if display_text else self.rect.x + 12
             pygame.draw.line(surface, COLOR_TEXT,
                              (cursor_x, self.rect.y + 8),
                              (cursor_x, self.rect.bottom - 8), 2)
