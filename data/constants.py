@@ -4,7 +4,7 @@
 """
 
 # ─── 버전 ───
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 GITHUB_REPO = "hjchoi00/damaproject"  # ← GitHub 아이디로 수정
 
 # ─── 화면 설정 ───
