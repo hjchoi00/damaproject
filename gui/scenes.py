@@ -319,7 +319,7 @@ class CharacterSelectScene(Scene):
         surface.fill(COLOR_BG)
 
         font = get_font(FONT_SIZE_LARGE)
-        title = font.render("🐣 캐릭터를 선택하세요", True, COLOR_TEXT)
+        title = font.render("캐릭터를 선택하세요", True, COLOR_TEXT)
         surface.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 30))
 
         if not self.pets:
@@ -383,26 +383,54 @@ class MainScene(Scene):
 
     def _build_layout(self):
         """전체 레이아웃 구성"""
+        # ══════════ 레이아웃 상수 (여기만 수정하면 전체 반영) ══════════
+        # 스프라이트
+        self._sprite_scale = 2
+        self._sprite_y = 150
+        self._name_y = 12
+        # 상태바 패널
+        self._stat_panel_y = 400
+        self._stat_panel_h = 105
+        self._panel_radius = 12
+        self._panel_margin = 10
+        # 액션 버튼
+        self._btn_y = SCREEN_HEIGHT - 72
+        self._btn_panel_y = SCREEN_HEIGHT - 85
+        self._btn_panel_h = 80
+        # 팝업 공통
+        self._popup_y = 150
+        self._popup_btn_start_y = 210
+        self._popup_btn_h = 44
+        self._popup_btn_gap = 8
+        self._popup_header_h = 60
+        self._popup_btn_margin = 10
+        # 이펙트 (sprite_y 기준 자동 계산)
+        self._zzz_y = self._sprite_y + 65
+        self._particle_cy = self._sprite_y + 125
+        self._float_text_y = self._sprite_y + 105
+        self._toast_y = 50
+        # ══════════════════════════════════════════════════════════════
+
         # ─── 뒤로가기 버튼 (좌상단) ───
-        self.btn_back = Button(10, 8, 90, 36, "← 메뉴",
+        self.btn_back = Button(self._panel_margin, 8, 70, 36, "← 메뉴",
                                color=COLOR_GRAY, font_size=FONT_SIZE_SMALL)
         self.btn_back.set_callback(self._on_back)
 
         # ─── 상태바 (중간 영역) ───
-        stat_panel_y = 340
-        bar_x = 20
+        bar_x = self._panel_margin + 10
         bar_w = SCREEN_WIDTH // 2 - 35
+        spy = self._stat_panel_y
         self.stat_bars = {
-            "hunger": StatBar(bar_x, stat_panel_y + 18, bar_w, STAT_BAR_HEIGHT,
-                              "🍚 포만감", COLOR_HUNGER),
-            "happy": StatBar(bar_x, stat_panel_y + 52, bar_w, STAT_BAR_HEIGHT,
-                             "😊 행복도", COLOR_HAPPY),
-            "clean": StatBar(bar_x + bar_w + 30, stat_panel_y + 18, bar_w, STAT_BAR_HEIGHT,
-                             "✨ 청결도", COLOR_CLEAN),
-            "health": StatBar(bar_x + bar_w + 30, stat_panel_y + 52, bar_w, STAT_BAR_HEIGHT,
-                              "❤️ 건강", COLOR_HEALTH),
+            "hunger": StatBar(bar_x, spy + 18, bar_w, STAT_BAR_HEIGHT,
+                              "포만감", COLOR_HUNGER),
+            "happy": StatBar(bar_x, spy + 52, bar_w, STAT_BAR_HEIGHT,
+                             "행복도", COLOR_HAPPY),
+            "clean": StatBar(bar_x + bar_w + 30, spy + 18, bar_w, STAT_BAR_HEIGHT,
+                             "청결도", COLOR_CLEAN),
+            "health": StatBar(bar_x + bar_w + 30, spy + 52, bar_w, STAT_BAR_HEIGHT,
+                              "건강", COLOR_HEALTH),
         }
-        self.exp_bar = ExpBar(bar_x, stat_panel_y + 84, SCREEN_WIDTH - 40, 12)
+        self.exp_bar = ExpBar(bar_x, spy + 84, SCREEN_WIDTH - 40, 12)
 
         # ─── 액션 버튼 (하단 — 친구만나기 포함 7개 한 줄) ───
         btn_data = [
@@ -420,11 +448,10 @@ class MainScene(Scene):
         margin = 8
         total_w = len(btn_data) * (btn_w + margin) - margin
         start_x = (SCREEN_WIDTH - total_w) // 2
-        btn_y = SCREEN_HEIGHT - 72
 
         self.action_buttons = []
         for i, (text, color, callback) in enumerate(btn_data):
-            btn = Button(start_x + i * (btn_w + margin), btn_y,
+            btn = Button(start_x + i * (btn_w + margin), self._btn_y,
                          btn_w, btn_h, text, color=color, font_size=FONT_SIZE_SMALL)
             btn.set_callback(callback)
             self.action_buttons.append(btn)
@@ -437,20 +464,24 @@ class MainScene(Scene):
         games = [("가위바위보", "rps"), ("숫자맞추기", "number"),
                  ("리듬게임", "rhythm"), ("퍼즐", "puzzle"), ("달리기", "runner")]
         play_btn_w = 200
-        play_btn_h = 44
+        pbh = self._popup_btn_h
+        pbg = self._popup_btn_gap
         play_popup_w = play_btn_w + 40
         play_popup_x = (SCREEN_WIDTH - play_popup_w) // 2
-        play_popup_h = 60 + len(games) * (play_btn_h + 8)
-        self._play_popup_rect = (play_popup_x - 10, 150, play_popup_w + 20, play_popup_h)
+        play_popup_h = self._popup_header_h + len(games) * (pbh + pbg)
+        self._play_popup_rect = (play_popup_x - self._popup_btn_margin,
+                                 self._popup_y,
+                                 play_popup_w + self._popup_btn_margin * 2,
+                                 play_popup_h)
         game_colors = [
             (255, 160, 140), (140, 200, 255), (255, 200, 100),
             (160, 230, 160), (220, 170, 255),
         ]
         self.play_buttons = []
         for i, (name, game_id) in enumerate(games):
-            bx = play_popup_x + 10
-            by = 210 + i * (play_btn_h + 8)
-            btn = Button(bx, by, play_btn_w, play_btn_h, name,
+            bx = play_popup_x + self._popup_btn_margin
+            by = self._popup_btn_start_y + i * (pbh + pbg)
+            btn = Button(bx, by, play_btn_w, pbh, name,
                          color=game_colors[i], font_size=FONT_SIZE_MEDIUM)
             btn.set_callback(lambda gid=game_id: self._start_minigame(gid))
             self.play_buttons.append(btn)
@@ -478,7 +509,7 @@ class MainScene(Scene):
         if x is None:
             x = SCREEN_WIDTH // 2 - 30
         if y is None:
-            y = 160
+            y = self._float_text_y
         self.floating_texts.append(FloatingText(text, x, y, color))
 
     # ─── 액션 콜백 ───
@@ -503,9 +534,13 @@ class MainScene(Scene):
         popup_w = 380
         popup_x = (SCREEN_WIDTH - popup_w) // 2
         btn_w = popup_w - 40
-        btn_h = 44
-        popup_h = 60 + len(food_names) * (btn_h + 8)
-        self._food_popup_rect = (popup_x - 10, 150, popup_w + 20, popup_h)
+        pbh = self._popup_btn_h
+        pbg = self._popup_btn_gap
+        popup_h = self._popup_header_h + len(food_names) * (pbh + pbg)
+        self._food_popup_rect = (popup_x - self._popup_btn_margin,
+                                 self._popup_y,
+                                 popup_w + self._popup_btn_margin * 2,
+                                 popup_h)
 
         for i, name in enumerate(food_names):
             food_info = FOODS[name]
@@ -521,9 +556,9 @@ class MainScene(Scene):
                 color = (200, 230, 255) if count > 0 else (200, 200, 200)
                 enabled = count > 0
 
-            bx = popup_x + 10
-            by = 210 + i * (btn_h + 8)
-            btn = Button(bx, by, btn_w, btn_h, label,
+            bx = popup_x + self._popup_btn_margin
+            by = self._popup_btn_start_y + i * (pbh + pbg)
+            btn = Button(bx, by, btn_w, pbh, label,
                          color=color, font_size=FONT_SIZE_SMALL)
             btn.enabled = enabled
             btn.set_callback(lambda n=name: self._do_feed(n))
@@ -559,7 +594,7 @@ class MainScene(Scene):
         result = actions.sleep(self.pet)
         self.add_toast(result["message"])
         if self.pet.sleeping:
-            self.zzz = ZZZAnimation(SCREEN_WIDTH // 2 + 40, 120)
+            self.zzz = ZZZAnimation(SCREEN_WIDTH // 2 + 40, self._zzz_y)
         else:
             self.zzz = None
 
@@ -588,7 +623,7 @@ class MainScene(Scene):
 
     def _spawn_particles(self, char, color, count=5):
         cx = SCREEN_WIDTH // 2
-        cy = 180
+        cy = self._particle_cy
         for _ in range(count):
             x = cx + random.randint(-40, 40)
             y = cy + random.randint(-20, 20)
@@ -756,12 +791,13 @@ class MainScene(Scene):
         type_str = f" [{self.pet.evolution_type}]" if self.pet.evolution_type else ""
         info_text = f"{self.pet.name}  Lv.{self.pet.level} {stage_str}{type_str}"
         name_surf = font_name.render(info_text, True, COLOR_TEXT)
-        surface.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, 12))
+        surface.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2,
+                                 self._name_y))
 
-        # ─── 펫 스프라이트 (scale=2, 상단 중앙) ───
-        sprite = get_sprite_for_pet(self.pet, scale=2)
+        # ─── 펫 스프라이트 ───
+        sprite = get_sprite_for_pet(self.pet, scale=self._sprite_scale)
         sx = SCREEN_WIDTH // 2 - sprite.get_width() // 2
-        sy = 55
+        sy = self._sprite_y
 
         # 애니메이션 오프셋
         ox, oy = self.bounce.get_offset()
@@ -790,51 +826,49 @@ class MainScene(Scene):
             surface.blit(next_surf, (SCREEN_WIDTH // 2 - next_surf.get_width() // 2, evo_y + 20))
 
         # ─── 상태바 패널 (중간) ───
-        stat_panel_y = 340
-        panel_rect = (10, stat_panel_y, SCREEN_WIDTH - 20, 105)
-        draw_rounded_rect(surface, panel_rect, (255, 250, 245), radius=12,
-                          border_color=COLOR_LIGHT_GRAY)
+        m = self._panel_margin
+        panel_rect = (m, self._stat_panel_y - 5, SCREEN_WIDTH - m * 2, self._stat_panel_h + 5)
+        draw_rounded_rect(surface, panel_rect, (255, 250, 245),
+                          radius=self._panel_radius, border_color=COLOR_LIGHT_GRAY)
 
         for bar in self.stat_bars.values():
             bar.draw(surface)
         self.exp_bar.draw(surface, level=self.pet.level)
 
         # ─── 액션 버튼 (하단) ───
-        btn_panel = (10, SCREEN_HEIGHT - 85, SCREEN_WIDTH - 20, 80)
-        draw_rounded_rect(surface, btn_panel, (255, 248, 240), radius=12,
-                          border_color=COLOR_LIGHT_GRAY)
+        btn_panel = (m, self._btn_panel_y, SCREEN_WIDTH - m * 2, self._btn_panel_h)
+        draw_rounded_rect(surface, btn_panel, (255, 248, 240),
+                          radius=self._panel_radius, border_color=COLOR_LIGHT_GRAY)
 
         for btn in self.action_buttons:
             btn.draw(surface)
 
         # 서브 메뉴 (팝업 오버레이)
         if self.show_food_menu:
-            # 반투명 오버레이
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 100))
             surface.blit(overlay, (0, 0))
-            # 팝업 배경
             draw_rounded_rect(surface, self._food_popup_rect, (255, 255, 250),
-                              radius=12, border_color=COLOR_HUNGER, border_width=3)
-            # 제목
+                              radius=self._panel_radius,
+                              border_color=COLOR_HUNGER, border_width=3)
             popup_font = get_font(FONT_SIZE_MEDIUM)
             title_surf = popup_font.render("🍚 무엇을 먹을까?", True, COLOR_TEXT)
-            surface.blit(title_surf, (self._food_popup_rect[0] + 20, self._food_popup_rect[1] + 12))
+            surface.blit(title_surf, (self._food_popup_rect[0] + 20,
+                                      self._food_popup_rect[1] + 12))
             for btn in self.food_buttons:
                 btn.draw(surface)
 
         if self.show_play_menu:
-            # 반투명 오버레이
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 100))
             surface.blit(overlay, (0, 0))
-            # 팝업 배경
             draw_rounded_rect(surface, self._play_popup_rect, (255, 255, 250),
-                              radius=12, border_color=COLOR_HAPPY, border_width=3)
-            # 제목
+                              radius=self._panel_radius,
+                              border_color=COLOR_HAPPY, border_width=3)
             popup_font = get_font(FONT_SIZE_MEDIUM)
             title_surf = popup_font.render("🎮 어떤 게임을 할까?", True, COLOR_TEXT)
-            surface.blit(title_surf, (self._play_popup_rect[0] + 20, self._play_popup_rect[1] + 12))
+            surface.blit(title_surf, (self._play_popup_rect[0] + 20,
+                                      self._play_popup_rect[1] + 12))
             for btn in self.play_buttons:
                 btn.draw(surface)
 
@@ -846,7 +880,7 @@ class MainScene(Scene):
 
         # 토스트
         for i, toast in enumerate(self.toasts[-3:]):
-            toast.draw(surface, y=50 + i * 40)
+            toast.draw(surface, y=self._toast_y + i * 40)
 
         # 다이얼로그
         if self.dialog and self.dialog.active:

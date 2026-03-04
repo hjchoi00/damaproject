@@ -155,7 +155,7 @@ class StatBar:
         # 라벨
         font = get_font(FONT_SIZE_SMALL)
         label_surf = font.render(self.label, True, COLOR_TEXT)
-        surface.blit(label_surf, (self.rect.x, self.rect.y - 16))
+        surface.blit(label_surf, (self.rect.x, self.rect.y - 20))
 
         # 배경 바
         draw_rounded_rect(surface, self.rect, COLOR_LIGHT_GRAY, radius=4)
@@ -177,7 +177,7 @@ class StatBar:
         # 수치 표시
         val_text = f"{int(self.display_val)}"
         val_surf = font.render(val_text, True, COLOR_TEXT)
-        val_rect = val_surf.get_rect(midright=(self.rect.right, self.rect.y - 8))
+        val_rect = val_surf.get_rect(midright=(self.rect.right, self.rect.y - 10))
         surface.blit(val_surf, val_rect)
 
 
@@ -472,10 +472,10 @@ class ExpBar:
         font = get_font(FONT_SIZE_SMALL)
         lv_text = f"Lv.{level}"
         lv_surf = font.render(lv_text, True, COLOR_TEXT)
-        surface.blit(lv_surf, (self.rect.x, self.rect.y - 16))
+        surface.blit(lv_surf, (self.rect.x, self.rect.y - 20))
 
         # 퍼센트
         pct = f"{int(self.display_progress * 100)}%"
         pct_surf = font.render(pct, True, COLOR_TEXT)
-        pct_rect = pct_surf.get_rect(midright=(self.rect.right, self.rect.y - 8))
+        pct_rect = pct_surf.get_rect(midright=(self.rect.right, self.rect.y - 10))
         surface.blit(pct_surf, pct_rect)
