@@ -29,9 +29,9 @@ class MinigameScene(Scene):
 
         # 결과 화면 버튼
         cx = SCREEN_WIDTH // 2
-        self.btn_retry = Button(cx - 130, 520, 120, 45, "다시하기",
+        self.btn_retry = Button(cx - 130, 490, 120, 45, "다시하기",
                                 color=COLOR_ACCENT2)
-        self.btn_back = Button(cx + 10, 520, 120, 45, "돌아가기",
+        self.btn_back = Button(cx + 10, 490, 120, 45, "돌아가기",
                                color=COLOR_GRAY)
         self.btn_retry.set_callback(self._on_retry)
         self.btn_back.set_callback(self._on_back)

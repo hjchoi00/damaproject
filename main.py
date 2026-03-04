@@ -8,7 +8,10 @@ import pygame
 from data.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS,
 )
-from gui.scenes import SceneManager, TitleScene, NamingScene, MainScene, NetworkScene
+from gui.scenes import (
+    SceneManager, TitleScene, NamingScene, MainScene, NetworkScene,
+    CharacterSelectScene,
+)
 from minigames.rps import RPSGame
 from minigames.number_guess import NumberGuessGame
 from minigames.rhythm import RhythmGame
@@ -29,6 +32,7 @@ def main():
     # 씬 등록
     scene_manager.add_scene("title", TitleScene())
     scene_manager.add_scene("naming", NamingScene())
+    scene_manager.add_scene("select", CharacterSelectScene())
     scene_manager.add_scene("main", MainScene())
     scene_manager.add_scene("network", NetworkScene())
     scene_manager.add_scene("game_rps", RPSGame())

@@ -28,7 +28,7 @@ from gui.animations import (
 from pet.pet import Pet
 from pet import actions
 from pet.evolution import get_evolution_description, get_next_evolution_level
-from data.save import save_pet, load_pet, has_save, delete_save
+from data.save import save_pet, load_pet, load_all_pets, has_save, delete_save, delete_pet_save
 
 
 class SceneManager:
@@ -98,9 +98,9 @@ class TitleScene(Scene):
 
         # 버튼
         cx = SCREEN_WIDTH // 2
-        self.btn_new = Button(cx - 100, 400, 200, 55, "새 게임",
+        self.btn_new = Button(cx - 100, 380, 200, 55, "새로 키우기",
                               color=COLOR_ACCENT, font_size=FONT_SIZE_LARGE)
-        self.btn_load = Button(cx - 100, 470, 200, 55, "이어하기",
+        self.btn_load = Button(cx - 100, 450, 200, 55, "이어하기",
                                color=COLOR_ACCENT2, font_size=FONT_SIZE_LARGE)
 
         self.btn_new.set_callback(self._on_new_game)
@@ -114,11 +114,8 @@ class TitleScene(Scene):
         self.manager.switch_to("naming")
 
     def _on_load_game(self):
-        pet = load_pet()
-        if pet:
-            self.manager.switch_to("main", pet=pet)
-        else:
-            self.manager.switch_to("naming")
+        # 캐릭터 선택 씬으로 이동
+        self.manager.switch_to("select")
 
     def handle_event(self, event):
         self.btn_new.handle_event(event)
@@ -144,7 +141,7 @@ class TitleScene(Scene):
 
         # 제목
         font_title = get_font(FONT_SIZE_TITLE + 8)
-        title_y = 120 + math.sin(self.timer * 2) * 8
+        title_y = 80 + math.sin(self.timer * 2) * 8
 
         # 그림자
         shadow = font_title.render("다마고치 ♥", True, (200, 180, 170))
@@ -162,7 +159,7 @@ class TitleScene(Scene):
         # 알 미리보기 (흔들흔들)
         egg = get_sprite(STAGE_EGG, "normal", scale=4)
         egg_x = SCREEN_WIDTH // 2 - egg.get_width() // 2
-        egg_y = 230 + math.sin(self.timer * 3) * 5
+        egg_y = 195 + math.sin(self.timer * 3) * 5
         egg_angle = math.sin(self.timer * 4) * 5
         rotated = pygame.transform.rotate(egg, egg_angle)
         surface.blit(rotated, (egg_x - (rotated.get_width() - egg.get_width()) // 2, egg_y))
@@ -208,8 +205,6 @@ class NamingScene(Scene):
     def _on_confirm(self):
         name = self.text_input.get_text()
         if name:
-            # 기존 세이브 삭제
-            delete_save()
             # 새 펫 생성
             pet = Pet(name=name)
             self.manager.switch_to("main", pet=pet)
@@ -229,7 +224,7 @@ class NamingScene(Scene):
         # 안내 텍스트
         font = get_font(FONT_SIZE_LARGE)
         text = font.render("펫의 이름을 지어주세요!", True, COLOR_TEXT)
-        surface.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, 100))
+        surface.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, 80))
 
         # 알 이미지 (흔들흔들)
         egg = get_sprite(STAGE_EGG, "normal", scale=4)
@@ -239,7 +234,7 @@ class NamingScene(Scene):
 
         font_hint = get_font(FONT_SIZE_SMALL)
         hint = font_hint.render("이 알에서 곧 무언가 태어날 거예요...", True, COLOR_GRAY)
-        surface.blit(hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, 280))
+        surface.blit(hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, 260))
 
         # 입력 필드
         self.text_input.draw(surface)
@@ -250,11 +245,107 @@ class NamingScene(Scene):
 
 
 # ═══════════════════════════════════════════════
+# 캐릭터 선택 씬
+# ═══════════════════════════════════════════════
+
+class CharacterSelectScene(Scene):
+    """저장된 캐릭터 목록에서 선택"""
+
+    def __init__(self):
+        super().__init__()
+        self.pets = []
+        self.buttons = []
+        self.delete_buttons = []
+        self.timer = 0
+
+        self.btn_back = Button(20, SCREEN_HEIGHT - 60, 120, 45, "← 돌아가기",
+                               color=COLOR_GRAY, font_size=FONT_SIZE_SMALL)
+        self.btn_back.set_callback(self._on_back)
+
+    def on_enter(self, **kwargs):
+        self.timer = 0
+        self._refresh_list()
+
+    def _refresh_list(self):
+        """세이브 목록 새로고침"""
+        self.pets = load_all_pets()
+        self.buttons = []
+        self.delete_buttons = []
+
+        card_w = 700
+        card_h = 80
+        start_x = (SCREEN_WIDTH - card_w) // 2
+        start_y = 90
+
+        for i, pet in enumerate(self.pets):
+            y = start_y + i * (card_h + 12)
+            stage_str = STAGE_NAMES.get(pet.stage, "?")
+            type_str = f" [{pet.evolution_type}]" if pet.evolution_type else ""
+            label = f"{pet.name}  Lv.{pet.level} {stage_str}{type_str}"
+
+            btn = Button(start_x, y, card_w - 60, card_h, label,
+                         color=(255, 248, 240), font_size=FONT_SIZE_MEDIUM)
+            btn.set_callback(lambda p=pet: self._on_select(p))
+            self.buttons.append(btn)
+
+            del_btn = Button(start_x + card_w - 50, y + 20, 40, 40, "✕",
+                             color=(255, 150, 150), font_size=FONT_SIZE_SMALL)
+            del_btn.set_callback(lambda p=pet: self._on_delete(p))
+            self.delete_buttons.append(del_btn)
+
+    def _on_select(self, pet):
+        self.manager.switch_to("main", pet=pet)
+
+    def _on_delete(self, pet):
+        delete_pet_save(pet.name)
+        self._refresh_list()
+        if not self.pets:
+            self.manager.switch_to("title")
+
+    def _on_back(self):
+        self.manager.switch_to("title")
+
+    def handle_event(self, event):
+        self.btn_back.handle_event(event)
+        for btn in self.buttons:
+            btn.handle_event(event)
+        for btn in self.delete_buttons:
+            btn.handle_event(event)
+
+    def update(self, dt):
+        self.timer += dt
+
+    def draw(self, surface):
+        surface.fill(COLOR_BG)
+
+        font = get_font(FONT_SIZE_LARGE)
+        title = font.render("🐣 캐릭터를 선택하세요", True, COLOR_TEXT)
+        surface.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 30))
+
+        if not self.pets:
+            font_msg = get_font(FONT_SIZE_MEDIUM)
+            msg = font_msg.render("저장된 캐릭터가 없습니다", True, COLOR_GRAY)
+            surface.blit(msg, (SCREEN_WIDTH // 2 - msg.get_width() // 2, 250))
+        else:
+            for i, btn in enumerate(self.buttons):
+                btn.draw(surface)
+                pet = self.pets[i]
+                mini_sprite = get_sprite_for_pet(pet, scale=1)
+                sprite_y = btn.rect.y + (btn.rect.height - mini_sprite.get_height()) // 2
+                surface.blit(mini_sprite, (btn.rect.x + 10, sprite_y))
+
+            for btn in self.delete_buttons:
+                btn.draw(surface)
+
+        self.btn_back.draw(surface)
+
+
+# ═══════════════════════════════════════════════
 # 메인 게임 씬
 # ═══════════════════════════════════════════════
 
 class MainScene(Scene):
-    """메인 게임 화면"""
+    """메인 게임 화면 — 펫(상단) → 스탯(중간) → 버튼(하단)"""
 
     def __init__(self):
         super().__init__()
@@ -269,42 +360,51 @@ class MainScene(Scene):
         self.shake = None
         self.zzz = None
 
-        # 상태바
-        bar_x = 15
-        bar_w = SCREEN_WIDTH // 2 - 30
-        self.stat_bars = {
-            "hunger": StatBar(bar_x, 50, bar_w, STAT_BAR_HEIGHT, "🍚 포만감",
-                              COLOR_HUNGER),
-            "happy": StatBar(bar_x, 88, bar_w, STAT_BAR_HEIGHT, "😊 행복도",
-                             COLOR_HAPPY),
-            "clean": StatBar(bar_x + bar_w + 30, 50, bar_w, STAT_BAR_HEIGHT,
-                             "✨ 청결도", COLOR_CLEAN),
-            "health": StatBar(bar_x + bar_w + 30, 88, bar_w, STAT_BAR_HEIGHT,
-                              "❤️ 건강", COLOR_HEALTH),
-        }
+        # 상태바 (위치는 _build_layout에서)
+        self.stat_bars = {}
+        self.exp_bar = None
 
-        # 경험치 바
-        self.exp_bar = ExpBar(bar_x, 122, SCREEN_WIDTH - 30, 12)
-
-        # 메뉴 상태 (버튼 생성 전에 초기화!)
+        # 메뉴 상태
         self.show_food_menu = False
         self.show_play_menu = False
-        self.show_net_menu = False
         self.food_buttons = []
         self.play_buttons = []
-        self.net_buttons = []
 
         # 액션 버튼
         self.action_buttons = []
-        self._create_action_buttons()
+        self.btn_back = None
 
         # 타이머
         self.save_timer = 0
         self.event_timer = 0
         self.game_time = 0
 
-    def _create_action_buttons(self):
-        """하단 액션 버튼 생성"""
+        self._build_layout()
+
+    def _build_layout(self):
+        """전체 레이아웃 구성"""
+        # ─── 뒤로가기 버튼 (좌상단) ───
+        self.btn_back = Button(10, 8, 90, 36, "← 메뉴",
+                               color=COLOR_GRAY, font_size=FONT_SIZE_SMALL)
+        self.btn_back.set_callback(self._on_back)
+
+        # ─── 상태바 (중간 영역) ───
+        stat_panel_y = 340
+        bar_x = 20
+        bar_w = SCREEN_WIDTH // 2 - 35
+        self.stat_bars = {
+            "hunger": StatBar(bar_x, stat_panel_y + 18, bar_w, STAT_BAR_HEIGHT,
+                              "🍚 포만감", COLOR_HUNGER),
+            "happy": StatBar(bar_x, stat_panel_y + 52, bar_w, STAT_BAR_HEIGHT,
+                             "😊 행복도", COLOR_HAPPY),
+            "clean": StatBar(bar_x + bar_w + 30, stat_panel_y + 18, bar_w, STAT_BAR_HEIGHT,
+                             "✨ 청결도", COLOR_CLEAN),
+            "health": StatBar(bar_x + bar_w + 30, stat_panel_y + 52, bar_w, STAT_BAR_HEIGHT,
+                              "❤️ 건강", COLOR_HEALTH),
+        }
+        self.exp_bar = ExpBar(bar_x, stat_panel_y + 84, SCREEN_WIDTH - 40, 12)
+
+        # ─── 액션 버튼 (하단 — 친구만나기 포함 7개 한 줄) ───
         btn_data = [
             ("밥", COLOR_HUNGER, self._on_feed),
             ("놀기", COLOR_HAPPY, self._on_play),
@@ -312,34 +412,28 @@ class MainScene(Scene):
             ("잠", COLOR_ENERGY, self._on_sleep),
             ("약", COLOR_HEALTH, self._on_medicine),
             ("훈련", COLOR_ACCENT2, self._on_train),
+            ("📡친구", COLOR_ACCENT3, self._on_network),
         ]
 
         btn_w = 68
         btn_h = 45
-        margin = 6
+        margin = 8
         total_w = len(btn_data) * (btn_w + margin) - margin
         start_x = (SCREEN_WIDTH - total_w) // 2
-        y = SCREEN_HEIGHT - 125
+        btn_y = SCREEN_HEIGHT - 72
 
         self.action_buttons = []
         for i, (text, color, callback) in enumerate(btn_data):
-            btn = Button(start_x + i * (btn_w + margin), y,
+            btn = Button(start_x + i * (btn_w + margin), btn_y,
                          btn_w, btn_h, text, color=color, font_size=FONT_SIZE_SMALL)
             btn.set_callback(callback)
             self.action_buttons.append(btn)
 
-        # 네트워크 버튼 (별도 줄)
-        self.btn_network = Button(SCREEN_WIDTH // 2 - 90, SCREEN_HEIGHT - 65,
-                                  180, 45, "📡 친구 만나기",
-                                  color=COLOR_ACCENT3, font_size=FONT_SIZE_SMALL)
-        self.btn_network.set_callback(self._on_network)
-
-        # 음식/놀기 팝업은 열 때 동적 생성 (_on_feed / _on_play 에서)
-        # 초기값만 설정
+        # 팝업 초기화
         self._food_popup_rect = None
         self._play_popup_rect = None
 
-        # 놀기 서브 메뉴 (정적 — 게임 목록은 변하지 않음)
+        # 놀기 서브 메뉴
         games = [("가위바위보", "rps"), ("숫자맞추기", "number"),
                  ("리듬게임", "rhythm"), ("퍼즐", "puzzle"), ("달리기", "runner")]
         play_btn_w = 200
@@ -347,17 +441,15 @@ class MainScene(Scene):
         play_popup_w = play_btn_w + 40
         play_popup_x = (SCREEN_WIDTH - play_popup_w) // 2
         play_popup_h = 60 + len(games) * (play_btn_h + 8)
-        self._play_popup_rect = (play_popup_x - 10, 200, play_popup_w + 20, play_popup_h)
+        self._play_popup_rect = (play_popup_x - 10, 150, play_popup_w + 20, play_popup_h)
         game_colors = [
-            (255, 160, 140),  # 빨강
-            (140, 200, 255),  # 파랑
-            (255, 200, 100),  # 노랑
-            (160, 230, 160),  # 초록
-            (220, 170, 255),  # 보라
+            (255, 160, 140), (140, 200, 255), (255, 200, 100),
+            (160, 230, 160), (220, 170, 255),
         ]
+        self.play_buttons = []
         for i, (name, game_id) in enumerate(games):
             bx = play_popup_x + 10
-            by = 260 + i * (play_btn_h + 8)
+            by = 210 + i * (play_btn_h + 8)
             btn = Button(bx, by, play_btn_w, play_btn_h, name,
                          color=game_colors[i], font_size=FONT_SIZE_MEDIUM)
             btn.set_callback(lambda gid=game_id: self._start_minigame(gid))
@@ -386,10 +478,16 @@ class MainScene(Scene):
         if x is None:
             x = SCREEN_WIDTH // 2 - 30
         if y is None:
-            y = 250
+            y = 160
         self.floating_texts.append(FloatingText(text, x, y, color))
 
     # ─── 액션 콜백 ───
+
+    def _on_back(self):
+        """메인 메뉴로 돌아가기"""
+        if self.pet:
+            save_pet(self.pet)
+        self.manager.switch_to("title")
 
     def _on_feed(self):
         self.show_play_menu = False
@@ -407,7 +505,7 @@ class MainScene(Scene):
         btn_w = popup_w - 40
         btn_h = 44
         popup_h = 60 + len(food_names) * (btn_h + 8)
-        self._food_popup_rect = (popup_x - 10, 200, popup_w + 20, popup_h)
+        self._food_popup_rect = (popup_x - 10, 150, popup_w + 20, popup_h)
 
         for i, name in enumerate(food_names):
             food_info = FOODS[name]
@@ -416,7 +514,7 @@ class MainScene(Scene):
 
             if is_free:
                 label = f"{name}  (포만+{abs(food_info['hunger'])})  [무한]"
-                color = (255, 190, 130)  # 주황
+                color = (255, 190, 130)
                 enabled = True
             else:
                 label = f"{name}  (포만+{abs(food_info['hunger'])})  x{count}"
@@ -424,7 +522,7 @@ class MainScene(Scene):
                 enabled = count > 0
 
             bx = popup_x + 10
-            by = 260 + i * (btn_h + 8)
+            by = 210 + i * (btn_h + 8)
             btn = Button(bx, by, btn_w, btn_h, label,
                          color=color, font_size=FONT_SIZE_SMALL)
             btn.enabled = enabled
@@ -461,7 +559,7 @@ class MainScene(Scene):
         result = actions.sleep(self.pet)
         self.add_toast(result["message"])
         if self.pet.sleeping:
-            self.zzz = ZZZAnimation(SCREEN_WIDTH // 2 + 40, 230)
+            self.zzz = ZZZAnimation(SCREEN_WIDTH // 2 + 40, 120)
         else:
             self.zzz = None
 
@@ -490,7 +588,7 @@ class MainScene(Scene):
 
     def _spawn_particles(self, char, color, count=5):
         cx = SCREEN_WIDTH // 2
-        cy = 300
+        cy = 180
         for _ in range(count):
             x = cx + random.randint(-40, 40)
             y = cy + random.randint(-20, 20)
@@ -551,10 +649,13 @@ class MainScene(Scene):
             self.dialog.handle_event(event)
             return
 
-        # ESC 메뉴 닫기
+        # ESC — 팝업 닫기 또는 메인 메뉴로
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self.show_food_menu = False
-            self.show_play_menu = False
+            if self.show_food_menu or self.show_play_menu:
+                self.show_food_menu = False
+                self.show_play_menu = False
+            else:
+                self._on_back()
             return
 
         # 서브 메뉴 버튼 (팝업 모드)
@@ -578,9 +679,9 @@ class MainScene(Scene):
             return
 
         # 메인 버튼
+        self.btn_back.handle_event(event)
         for btn in self.action_buttons:
             btn.handle_event(event)
-        self.btn_network.handle_event(event)
 
     def update(self, dt):
         if not self.pet:
@@ -646,27 +747,21 @@ class MainScene(Scene):
         if not self.pet:
             return
 
-        # ─── 상태바 패널 ───
-        panel_rect = (5, 30, SCREEN_WIDTH - 10, 115)
-        draw_rounded_rect(surface, panel_rect, (255, 250, 245), radius=12,
-                          border_color=COLOR_LIGHT_GRAY)
+        # ─── 뒤로가기 버튼 (좌상단) ───
+        self.btn_back.draw(surface)
 
-        for bar in self.stat_bars.values():
-            bar.draw(surface)
-        self.exp_bar.draw(surface, level=self.pet.level)
-
-        # ─── 펫 이름 & 정보 ───
+        # ─── 펫 이름 & 정보 (상단) ───
         font_name = get_font(FONT_SIZE_LARGE)
         stage_str = STAGE_NAMES.get(self.pet.stage, "?")
         type_str = f" [{self.pet.evolution_type}]" if self.pet.evolution_type else ""
         info_text = f"{self.pet.name}  Lv.{self.pet.level} {stage_str}{type_str}"
         name_surf = font_name.render(info_text, True, COLOR_TEXT)
-        surface.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, 155))
+        surface.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, 12))
 
-        # ─── 펫 스프라이트 ───
-        sprite = get_sprite_for_pet(self.pet, scale=4)
+        # ─── 펫 스프라이트 (scale=2, 상단 중앙) ───
+        sprite = get_sprite_for_pet(self.pet, scale=2)
         sx = SCREEN_WIDTH // 2 - sprite.get_width() // 2
-        sy = 250
+        sy = 55
 
         # 애니메이션 오프셋
         ox, oy = self.bounce.get_offset()
@@ -681,29 +776,36 @@ class MainScene(Scene):
         if self.zzz:
             self.zzz.draw(surface)
 
-        # 진화 설명
+        # ─── 진화 설명 + 다음 진화 안내 ───
         desc = get_evolution_description(self.pet.stage, self.pet.evolution_type)
         font_desc = get_font(FONT_SIZE_SMALL)
-        desc_surf = font_desc.render(desc[:40], True, COLOR_GRAY)
-        surface.blit(desc_surf, (SCREEN_WIDTH // 2 - desc_surf.get_width() // 2,
-                                 sy + sprite.get_height() + 10))
+        evo_y = sy + sprite.get_height() + 6
+        desc_surf = font_desc.render(desc[:50], True, COLOR_GRAY)
+        surface.blit(desc_surf, (SCREEN_WIDTH // 2 - desc_surf.get_width() // 2, evo_y))
 
-        # 다음 진화 안내
         next_lv = get_next_evolution_level(self.pet.stage)
         if next_lv:
             next_text = f"다음 진화: Lv.{next_lv}"
             next_surf = font_desc.render(next_text, True, COLOR_ACCENT2)
-            surface.blit(next_surf, (SCREEN_WIDTH // 2 - next_surf.get_width() // 2,
-                                     sy + sprite.get_height() + 30))
+            surface.blit(next_surf, (SCREEN_WIDTH // 2 - next_surf.get_width() // 2, evo_y + 20))
 
-        # ─── 액션 버튼 ───
-        btn_panel = (5, SCREEN_HEIGHT - 140, SCREEN_WIDTH - 10, 135)
+        # ─── 상태바 패널 (중간) ───
+        stat_panel_y = 340
+        panel_rect = (10, stat_panel_y, SCREEN_WIDTH - 20, 105)
+        draw_rounded_rect(surface, panel_rect, (255, 250, 245), radius=12,
+                          border_color=COLOR_LIGHT_GRAY)
+
+        for bar in self.stat_bars.values():
+            bar.draw(surface)
+        self.exp_bar.draw(surface, level=self.pet.level)
+
+        # ─── 액션 버튼 (하단) ───
+        btn_panel = (10, SCREEN_HEIGHT - 85, SCREEN_WIDTH - 20, 80)
         draw_rounded_rect(surface, btn_panel, (255, 248, 240), radius=12,
                           border_color=COLOR_LIGHT_GRAY)
 
         for btn in self.action_buttons:
             btn.draw(surface)
-        self.btn_network.draw(surface)
 
         # 서브 메뉴 (팝업 오버레이)
         if self.show_food_menu:
@@ -742,9 +844,9 @@ class MainScene(Scene):
         for p in self.particles:
             p.draw(surface)
 
-        # 토스트 (상단)
+        # 토스트
         for i, toast in enumerate(self.toasts[-3:]):
-            toast.draw(surface, y=10 + i * 40)
+            toast.draw(surface, y=50 + i * 40)
 
         # 다이얼로그
         if self.dialog and self.dialog.active:

@@ -8,8 +8,8 @@ VERSION = "1.0.2"
 GITHUB_REPO = "hjchoi00/damaproject"  # ← GitHub 아이디로 수정
 
 # ─── 화면 설정 ───
-SCREEN_WIDTH = 480
-SCREEN_HEIGHT = 640
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
 FPS = 30
 TITLE = "다마고치 ♥"
 

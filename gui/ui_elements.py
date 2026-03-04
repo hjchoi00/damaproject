@@ -10,6 +10,7 @@ from data.constants import (
     COLOR_GRAY, COLOR_LIGHT_GRAY, COLOR_BG,
     STAT_BAR_WIDTH, STAT_BAR_HEIGHT,
     FONT_SIZE_SMALL, FONT_SIZE_MEDIUM, FONT_SIZE_LARGE, FONT_SIZE_TITLE,
+    SCREEN_WIDTH, SCREEN_HEIGHT,
 )
 
 
@@ -380,11 +381,11 @@ class Dialog:
         self.result = None
         self.active = True
 
-        # 위치 계산
-        self.width = 380
+        # 위치 계산 (화면 중앙 동적 배치)
+        self.width = min(400, SCREEN_WIDTH - 80)
         self.height = 200
-        self.x = 50
-        self.y = 200
+        self.x = (SCREEN_WIDTH - self.width) // 2
+        self.y = (SCREEN_HEIGHT - self.height) // 2
 
         self.buttons = []
         btn_width = 100

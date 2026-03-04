@@ -36,7 +36,7 @@ class RPSGame(MinigameScene):
         cx = SCREEN_WIDTH // 2
         self.choice_buttons = []
         for i, name in enumerate(CHOICES):
-            btn = Button(cx - 180 + i * 130, 400, 110, 60, name,
+            btn = Button(cx - 180 + i * 130, 370, 110, 60, name,
                          color=[(255, 200, 180), (200, 220, 255), (200, 255, 200)][i],
                          font_size=FONT_SIZE_MEDIUM)
             btn.set_callback(lambda idx=i: self._on_choose(idx))
@@ -177,7 +177,7 @@ class RPSGame(MinigameScene):
 
         # 히스토리
         if self.round_history:
-            hist_y = 490
+            hist_y = 460
             font_small = get_font(FONT_SIZE_SMALL)
             for i, h in enumerate(self.round_history[-3:]):
                 mark = {"win": "⭕", "lose": "❌", "draw": "➖"}[h["result"]]
